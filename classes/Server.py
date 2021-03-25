@@ -34,7 +34,7 @@ class Server:
     Misc. Callable Functions
     """
         
-    def server_resources(self, num_resource, weak_range, strong_range):
+    def server_resources(self, num_resource, weak_range, strong_range, form = ["int"]):
         """
         generate matrix to define resource capacity for each timestep
         
@@ -43,9 +43,12 @@ class Server:
             weak_range - level 1 resources, num_resource x 2 matrix
             strong_range - level 2 resources, num_resource x 2 matrix
             timesteps - number of timesteps in the system
-            
+            form - the allowed types of value each resource can take
+
         Attribute: 
             avail_rsrc - available resources at server (single timestep)
+
+        - Can continue to utilize this to obtain the total number of cores associated with each VM
         """
         
         max_range = 1e9 # Placeholder for infinite resource
@@ -61,9 +64,12 @@ class Server:
             return
         
         # Draw each resource type from random distribution
-        for i in range(num_resource):
+        for i, f in zip(range(num_resource), form):
             resource_draw = np.random.uniform(low = lvl_range[i,0], high = lvl_range[i,1], size = None)
-            avail[i] = avail[i] * resource_draw
+            if f == 'int':
+                avail[i] = int(avail[i] * resource_draw)
+            else:
+                avail[i] = avail[i] * resource_draw
         
         self.num_rsrc = num_resource
         self.avail_rsrc = avail

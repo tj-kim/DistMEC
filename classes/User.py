@@ -12,7 +12,7 @@ class User:
         - conditioning function
     """
     
-    def __init__(self, boundaries, time_steps, mvmt_class, lambdas, max_speed, num_path = 1):
+    def __init__(self, boundaries, time_steps, mvmt_class, lambdas, max_speed):
         """
         boundaries - x,y coordinates showing limit for where 
         time_steps - how many timesteps to simulate user movement for.
@@ -22,10 +22,11 @@ class User:
         """
         
         # Easy to store values
-        self.num_path = num_path
+        self.num_path = 1
         self.time_steps = time_steps
         self.mvmt_class = mvmt_class
         self.max_speed = max_speed
+        self.boundaries = boundaries
         self.lmda = lambdas[mvmt_class]
         self.num_servers = None
         self.user_id = None
@@ -35,7 +36,7 @@ class User:
         
         # Draw future user location x numpath for travel
         self.all_paths = self.generate_all_paths(boundaries, init_loc, 
-                                                 num_path, lambdas[mvmt_class], 
+                                                 self.num_path, lambdas[mvmt_class], 
                                                  time_steps, max_speed)
         
         # Select a single path as true path of movement for user
