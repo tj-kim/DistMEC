@@ -12,14 +12,29 @@ class Application:
         user_id - associate job with user id
         """
         
+        # Init values
         self.user_id = user_id
         self.job_type = job_type
         self.time_steps = time_steps
-        self.job_profile = job_profiles[job_type]      
+        self.job_profile = job_profiles[job_type] # Load rate, latency restriction      
        
-        # Extract Values from user
-        self.mvmt_class = None
-        self.refresh_rate = None
+        # Load latency/offload values
+        self.latency_req = self.job_profile.latency_req
+        self.offload_mean = self.job_profile.offload_mean
+        
+        # Record total amount of load generated per ts
+        self.load_history = np.zeros(time_steps)
+        
+        # Record Reinforcement learning values below (UCB, confidence range)
+        
+    def new_load(self,t):
+        """
+        Return a load value for this timestep based on exponential distribution value
+        This will be logged into the 
+        """
+        
+        self.load_history[t] =  np.random.exponential(1/self.offload_mean)
+        return
 
 
 class Job_Profile:
@@ -31,12 +46,12 @@ class Job_Profile:
     """
     
     def __init__(self, job_name,
-                    latency_req_range,
-                    offload_range):
+                    latency_req,
+                    offload_mean):
         """
         Add job profile to list 
         """
         
         self.job_name = job_name
-        self.latency_req_range = latency_req_range # milisecond
-        self.offload_range = offload_range
+        self.latency_req = latency_req # milisecond
+        self.offload_mean = offload_mean

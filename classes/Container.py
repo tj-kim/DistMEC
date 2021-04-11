@@ -17,7 +17,17 @@ class Container:
         self.server_id = server_id
         self.deployed = False # True when active at server
         
-        self.queue = 
+        # queue --> [user_id, load, remaining load]
+        self.queue = np.empty((0,3))
+        self.pre_queue = np.empty((0,3))
         
+    def add_to_pre_queue(self, new_offload):
+        """
+        At the start of small TS add all queues
+        new_offload -> np array of shape (1,3)
+        """
         
-    def add_to_queue:
+        new_offload = np.reshape(new_offload, (1,3))
+        
+        return
+        
