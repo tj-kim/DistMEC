@@ -65,7 +65,7 @@ class Server:
         
         # Draw each resource type from random distribution
         for i, f in zip(range(num_resource), form):
-            resource_draw = np.random.uniform(low = lvl_range[i,0], high = lvl_range[i,1], size = None)
+            resource_draw = np.ceil(np.random.uniform(low = lvl_range[i,0], high = lvl_range[i,1], size = None))
             if f == 'int':
                 avail[i] = int(avail[i] * resource_draw)
             else:
