@@ -16,12 +16,16 @@ class Container:
         self.app_id = app_id
         self.server_id = server_id
         self.deployed = False # True when active at server
+        self.service_rate = service_rate
         
-        # queue --> [user_id, load, remaining load]
-        self.queue = np.empty((0,3))
-        self.pre_queue = np.empty((0,3))
+        # queue --> [user_id, job_id, load, remaining load]
+        self.queue = np.empty((0,4))
+        # history --> [user_id,job_id,load,completion_time,latency_restrict]
+        self.history = np.empty((0,5))
         
-    def add_to_pre_queue(self, new_offload):
+        
+        
+    def add_to_queue(self, new_offload):
         """
         At the start of small TS add all queues
         new_offload -> np array of shape (1,3)
@@ -31,3 +35,7 @@ class Container:
         
         return
         
+    def calc_emp_beta(self):
+        """
+        Calculate the emprical value of beta based on latency violations
+        """
