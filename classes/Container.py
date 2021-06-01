@@ -59,13 +59,16 @@ class Container:
         
         remaining_service = copy.deepcopy(self.service_rate)
         while remaining_service > 0:
-            remainder = self.queue[0,3]
-            if remainder <= remaining_service:
-                self.queue = np.delete(self.queue,0,0)
-            elif remainder > remaining_service:
-                self.queue[0,3] = remainder - remaining_service
-            
-            remaining_service -= remainder
+            if self.queue.shape[0] > 0:
+                remainder = self.queue[0,3]
+                if remainder <= remaining_service:
+                    self.queue = np.delete(self.queue,0,0)
+                elif remainder > remaining_service:
+                    self.queue[0,3] = remainder - remaining_service
+
+                remaining_service -= remainder
+            else: 
+                remaining_service = 0
         
         return
         

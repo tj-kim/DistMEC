@@ -47,8 +47,10 @@ class Application:
         if server not in self.queue_length:
             self.queue_length[server] = np.empty([0,3])
             
-        row = np.array([[ts_big, ts_small, queue_responds]])
+        row = np.array([[ts_big, ts_small, queue_response]])
         self.queue_length[server] = np.append(self.queue_length[server], row, axis=0)
+        
+        return
         
     
     def offload_uniform(self, containers_deployed, ts_big, ts_small):

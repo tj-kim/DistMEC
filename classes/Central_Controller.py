@@ -75,9 +75,9 @@ class Central_Controller:
                 limit - number of iterations to run swapping before quitting
         """
         
-        utils,order, deployed_coor, array_utils = self.compute_container_utility(self.container_deployed,
+        self.container_deployed = self.VM_placement_init(self.apps)
+        utils, order, deployed_coor, array_utils = self.compute_container_utility(self.container_deployed,
                                                                                      users,apps, self.mode)
-        # print('util', np.sum(array_utils))    
         
         for t in range(rounds):
             # Test the swapping
@@ -184,7 +184,7 @@ class Central_Controller:
         
         return container_deployed
         
-    def compute_container_utility(self, container_deployed, users, apps, mode = 'dist'):
+    def compute_container_utility(self, container_deployed, users, apps, mode = None):
         """
         Compute all utilities for containers that are deployed
         Sort the VMs by their utilities in ascending order
