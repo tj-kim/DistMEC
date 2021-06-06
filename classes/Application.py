@@ -7,7 +7,7 @@ class Application:
     - Job type, resource requirements, UE requirements, arrival, departure times
     """
     
-    def __init__(self, job_type, user_id, time_steps, job_profiles):
+    def __init__(self, job_type, user_id, time_steps, job_profiles, mode, dist_n, user):
         """
         job_type - integer [0,1,2] based on the sample profiles we have 
         user_id - associate job with user id
@@ -17,16 +17,19 @@ class Application:
         self.user_id = user_id
         self.job_type = job_type
         self.time_steps = time_steps
-        self.job_profile = job_profiles[job_type] # Load rate, latency restriction      
+        self.job_profile = job_profiles[job_type] # Load rate, latency restriction
+        self.user = user
        
         # Load latency/offload values
         self.latency_req = self.job_profile.latency_req
         self.offload_mean = self.job_profile.offload_mean
+        self.mode = mode
+        self.dist_n = dist_n
         
         # Record total amount of load generated per ts
         self.load_history = {}
-        self.offload_history = {}
-        self.queue_length = {} # key[server] [big_ts, small_ts, ts_taken]
+        self.offload_history = {} #key[bt,st], val[load_s1, load_s2...]
+        self.queue_length = {} # key[server] [big_ts, small_ts, load, ts_taken, distance]
         
         # Record Reinforcement learning values below (UCB, confidence range)
         
@@ -42,12 +45,12 @@ class Application:
         self.load_history[(ts_big,ts_small)] =  np.random.geometric(1/self.offload_mean)
         return
     
-    def record_queue_length(self, queue_response, server, ts_big, ts_small):
+    def record_queue_length(self, queue_response, server, ts_big, ts_small, load, s_dist):
         
         if server not in self.queue_length:
-            self.queue_length[server] = np.empty([0,3])
+            self.queue_length[server] = np.empty([0,5])
             
-        row = np.array([[ts_big, ts_small, queue_response]])
+        row = np.array([[ts_big, ts_small, load, queue_response, s_dist]])
         self.queue_length[server] = np.append(self.queue_length[server], row, axis=0)
         
         return
@@ -78,9 +81,52 @@ class Application:
         
         return to_offload
     
-    def offload_distance(self, containers_deployed, n):
+    def offload_distance(self, containers_deployed, ts_big, ts_small, user, n, central_controller):
         
-        return
+        valid_containers = containers_deployed[self.job_type]
+        num_deployed = np.sum(valid_containers)
+        load = self.load_history[(ts_big,ts_small)]
+        
+        # distribute based on distance then run same int code
+        user_loc = int(user.user_voronoi_true[int(ts_big)])
+        dists = central_controller.server_dists[user_loc] + n
+        temp_row = (valid_containers*(dists**2))
+
+        for i in range(temp_row.shape[0]):
+            if temp_row[i]>0:
+                temp_row[i] = 1/temp_row[i]
+
+        app_row = temp_row/np.sum(temp_row)
+
+        double_load = app_row * load
+        int_load = np.floor(double_load)
+        diff = load - np.sum(int_load)
+        deployed = np.where(valid_containers==1)[0]
+        deploy_choice = random.choices(list(deployed),k=int(diff))
+        
+        for i in deploy_choice:
+            int_load[i] += 1
+        
+        self.offload_history[(ts_big,ts_small)] = int_load
+        
+        to_offload = {}
+        
+        for s in range(int_load.shape[0]):
+            if int_load[s] > 0:
+                to_offload[(s,self.job_type)] = np.array([[self.user_id,ts_small,int_load[s],int_load[s]]])
+        
+        return to_offload
+    
+    def offload(self, containers_deployed, ts_big, ts_small, central_controller):
+        
+        if self.mode =='dist':
+            to_offload = self.offload_distance(containers_deployed, ts_big, ts_small, 
+                                               self.user, self.dist_n, central_controller)
+        else:
+            to_offload = self.offload_uniform(containers_deployed, ts_big, ts_small)
+            
+        return to_offload
+        
 
     def cmab_round(self, arm_idx, arm_info, t):
         """

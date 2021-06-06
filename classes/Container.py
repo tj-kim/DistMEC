@@ -39,6 +39,7 @@ class Container:
         loads = self.queue[:,3]
         load_cm = np.cumsum(loads)
         service_time = (load_cm/self.service_rate)[-num_jobs:]
+        new_loads = loads[-num_jobs:]
         
         # Add to history
         new_history = copy.deepcopy(new_offload)
@@ -46,8 +47,11 @@ class Container:
         
         self.history = np.append(self.history, new_history,axis=0)
         
-        service_time_log = np.append(new_history[:,0].reshape(new_history[:,0].shape[0],1),
-                                     service_time.reshape(service_time.shape[0],1),axis=1)
+        st_temp = np.append(new_history[:,0].reshape(new_history[:,0].shape[0],1),
+                                     new_loads.reshape(new_loads.shape[0],1), axis=1)
+                                             
+                                     
+        service_time_log= np.append(st_temp, service_time.reshape(service_time.shape[0],1),axis=1)
         
         return service_time_log
     

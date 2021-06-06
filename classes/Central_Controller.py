@@ -34,6 +34,7 @@ class Central_Controller:
         self.num_cores = self.obtain_num_cores()
         self.max_deployed = self.obtain_max_deployed()
         self.server_dists = self.server2server_dist(servers)
+        self.dist_n = system_params.dist_n
         
         # Initialize Utilities
         # self.container_utility = np.zeros(len(containers))
@@ -206,13 +207,14 @@ class Central_Controller:
         return utils, np.argsort(utils), deployed_coor, cost
 
     
-    def offload_estimate(self, container_deployed, users, apps, big_ts, mode = None, dist_offset = 0.1):
+    def offload_estimate(self, container_deployed, users, apps, big_ts, mode = None):
         """
         Ratio of incoming traffic to be offloaded to different containers that are deployed
         """
         
         offload_dict = {} # Per user
-        
+        dist_offset = self.dist_n
+
         # Parallalize this process later:
         if mode == 'dist':
             for u in range(len(users)):
