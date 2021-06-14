@@ -21,9 +21,11 @@ class Container:
         self.latency_restriction = latency_restriction
         
         # queue --> [user_id, ts_arrive, load, remaining load]
-        self.queue = np.empty((0,4))
+        self.queue = None
+        self.flush_queue()
         # history --> [user_id,ts_arrive,load,completion_time]
-        self.history = np.empty((0,4))
+        self.history = None
+        self.reset_history()
         
     def add_to_queue(self, new_offload):
         """
@@ -75,6 +77,12 @@ class Container:
                 remaining_service = 0
         
         return
+    
+    def flush_queue(self):
+        self.queue = np.empty((0,4))
+        
+    def reset_history(self):
+        self.history = np.empty((0,4))
         
     def calc_emp_beta(self):
         """

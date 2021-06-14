@@ -15,6 +15,11 @@ def run_sim_temp(sim_param, servers, users, containers, apps):
     cc = Central_Controller(servers, containers, sim_param, apps, users)
     cc.mode = sim_param.cc_mode
     cc_deployment_history = {}
+    
+    # Clear container memory
+    for c_key in containers.keys():
+        containers[c_key].flush_queue()
+        containers[c_key].reset_history()
 
     for bt in range(sim_param.big_ts):
 
@@ -22,6 +27,10 @@ def run_sim_temp(sim_param, servers, users, containers, apps):
         cc.big_ts = bt
         cc.VM_placement(users,apps,sim_param.deploy_rounds)
         cc_deployment_history[bt] = cc.container_deployed
+        
+        # Reset containers to rid of queues
+        for c_key in containers.keys():
+            containers[c_key].flush_queue()
 
         # For each small time step offload and serve at container
         for st in range(sim_param.small_ts):
