@@ -35,6 +35,7 @@ class Central_Controller:
         self.max_deployed = self.obtain_max_deployed()
         self.server_dists = self.server2server_dist(servers)
         self.dist_n = system_params.dist_n
+        self.dist_p = system_params.dist_p
         
         # Initialize Utilities
         # self.container_utility = np.zeros(len(containers))
@@ -224,8 +225,8 @@ class Central_Controller:
                 
                 # Dist^2 per 
                 user_loc = int(users[u].user_voronoi[0,int(big_ts)])
-                dists = self.server_dists[user_loc] + dist_offset
-                temp_row = (app_row*(dists**2))
+                dists = self.server_dists[user_loc] + self.dist_n
+                temp_row = (app_row*(dists**self.dist_p))
                 
                 for i in range(temp_row.shape[0]):
                     if temp_row[i]>0:

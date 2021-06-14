@@ -7,7 +7,8 @@ class Application:
     - Job type, resource requirements, UE requirements, arrival, departure times
     """
     
-    def __init__(self, job_type, user_id, time_steps, job_profiles, mode, dist_n, user):
+    def __init__(self, job_type, user_id, time_steps, job_profiles, mode, dist_n,dist_p, user,
+                ts_big, ts_small):
         """
         job_type - integer [0,1,2] based on the sample profiles we have 
         user_id - associate job with user id
@@ -23,8 +24,10 @@ class Application:
         # Load latency/offload values
         self.latency_req = self.job_profile.latency_req
         self.offload_mean = self.job_profile.offload_mean
-        self.mode = mode
+        self.mode = mode # dist vs. uniform
         self.dist_n = dist_n
+        self.dist_p = dist_p
+        self.offload_mode = 'd' # 'i'
         
         # Record total amount of load generated per ts
         self.load_history = {}
@@ -35,6 +38,9 @@ class Application:
         
         
         # Keep information on where relevant VM is
+
+        # Generate load ahead of time
+        self.new_load(ts_big,ts_small)
         
     def new_load(self,ts_big,ts_small):
         """
@@ -42,7 +48,9 @@ class Application:
         This will be logged into the 
         """
         
-        self.load_history[(ts_big,ts_small)] =  np.random.geometric(1/self.offload_mean)
+        for tb in range(ts_big):
+            for ts in range(ts_small):
+                self.load_history[(tb,ts)] =  np.random.geometric(1/self.offload_mean)
         return
     
     def record_queue_length(self, queue_response, server, ts_big, ts_small, load, s_dist):
@@ -57,6 +65,7 @@ class Application:
         
     
     def offload_uniform(self, containers_deployed, ts_big, ts_small):
+        # Get rid of this (not needed as distance case can cover this fully)
         
         valid_containers = containers_deployed[self.job_type]
         num_deployed = np.sum(valid_containers)
@@ -81,7 +90,11 @@ class Application:
         
         return to_offload
     
-    def offload_distance(self, containers_deployed, ts_big, ts_small, user, n, central_controller):
+    def offload_distance(self, containers_deployed, ts_big, ts_small, user, n,p, central_controller):
+        """
+        n- distance offset value
+        p- distance power value
+        """
         
         valid_containers = containers_deployed[self.job_type]
         num_deployed = np.sum(valid_containers)
@@ -90,7 +103,7 @@ class Application:
         # distribute based on distance then run same int code
         user_loc = int(user.user_voronoi_true[int(ts_big)])
         dists = central_controller.server_dists[user_loc] + n
-        temp_row = (valid_containers*(dists**2))
+        temp_row = (valid_containers*(dists**p))
 
         for i in range(temp_row.shape[0]):
             if temp_row[i]>0:
@@ -99,21 +112,27 @@ class Application:
         app_row = temp_row/np.sum(temp_row)
 
         double_load = app_row * load
-        int_load = np.floor(double_load)
-        diff = load - np.sum(int_load)
-        deployed = np.where(valid_containers==1)[0]
-        deploy_choice = random.choices(list(deployed),k=int(diff))
-        
-        for i in deploy_choice:
-            int_load[i] += 1
-        
-        self.offload_history[(ts_big,ts_small)] = int_load
-        
         to_offload = {}
         
-        for s in range(int_load.shape[0]):
-            if int_load[s] > 0:
-                to_offload[(s,self.job_type)] = np.array([[self.user_id,ts_small,int_load[s],int_load[s]]])
+        if self.offload_mode == 'i':
+            int_load = np.floor(double_load)
+            diff = load - np.sum(int_load)
+            deployed = np.where(valid_containers==1)[0]
+            deploy_choice = random.choices(list(deployed),k=int(diff))
+
+            for i in deploy_choice:
+                int_load[i] += 1
+
+            self.offload_history[(ts_big,ts_small)] = int_load
+
+            for s in range(int_load.shape[0]):
+                if int_load[s] > 0:
+                    to_offload[(s,self.job_type)] = np.array([[self.user_id,ts_small,int_load[s],int_load[s]]])
+        elif self.offload_mode == 'd':
+            
+            for s in range(double_load.shape[0]):
+                if double_load[s] > 0:
+                    to_offload[(s,self.job_type)] = np.array([[self.user_id,ts_small,double_load[s],double_load[s]]])
         
         return to_offload
     
@@ -121,7 +140,7 @@ class Application:
         
         if self.mode =='dist':
             to_offload = self.offload_distance(containers_deployed, ts_big, ts_small, 
-                                               self.user, self.dist_n, central_controller)
+                                               self.user, self.dist_n, self.dist_p, central_controller)
         else:
             to_offload = self.offload_uniform(containers_deployed, ts_big, ts_small)
             
