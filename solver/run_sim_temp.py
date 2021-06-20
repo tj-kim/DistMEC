@@ -70,4 +70,4 @@ def run_sim_temp(sim_param, servers, users, containers, apps):
                 # Service the queue
                 containers[(s,a)].serve_ts()
 
-    return apps
+    return apps, cc

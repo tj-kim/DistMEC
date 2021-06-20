@@ -31,7 +31,6 @@ class Application:
         
         # Record total amount of load generated per ts
         self.load_history = {}
-        self.offload_history = {} #key[bt,st], val[load_s1, load_s2...]
         self.queue_length = {} # key[server] [big_ts, small_ts, load, ts_taken, distance]
         
         # Record Reinforcement learning values below (UCB, confidence range)
@@ -79,9 +78,7 @@ class Application:
         
         for i in deploy_choice:
             int_load[i] += 1
-        
-        self.offload_history[(ts_big,ts_small)] = int_load
-        
+                
         to_offload = {}
         
         for s in range(int_load.shape[0]):
@@ -123,12 +120,13 @@ class Application:
             for i in deploy_choice:
                 int_load[i] += 1
 
-            self.offload_history[(ts_big,ts_small)] = int_load
-
             for s in range(int_load.shape[0]):
                 if int_load[s] > 0:
                     to_offload[(s,self.job_type)] = np.array([[self.user_id,ts_small,int_load[s],int_load[s]]])
         elif self.offload_mode == 'd':
+            
+            # Optional Print for Debugging
+            # print(double_load)
             
             for s in range(double_load.shape[0]):
                 if double_load[s] > 0:
