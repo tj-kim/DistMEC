@@ -29,18 +29,19 @@ class Sim_Params:
         self.app_mode = app_mode
         
         # Non-specified instances
-        self.low_mean_jobs = 5
-        self.high_mean_jobs = 15
+        self.low_mean_jobs = 10
+        self.high_mean_jobs = 10
         self.server_weak_range = np.array([[2,2]])
         self.server_strong_range = np.array([[2,2]])
         self.user_max_speed = 2.5
         self.user_lamdas = [1/0.7,1/2,1/0.7] # 3 mph, 10 mph, 20 mph
         self.user_num_path = 10
-        self.container_service_low = 20
-        self.container_service_high = 30
+        self.container_service_low = 12
+        self.container_service_high = 12
         self.deploy_rounds = 5
         self.dist_n = 1
         self.dist_p = 1
+        self.latency_threshold = np.array([1,2])
         
         
 def setup_sim(sim_param):
@@ -49,11 +50,13 @@ def setup_sim(sim_param):
     num_app_types = sim_param.num_apps
     low_mean = sim_param.low_mean_jobs
     high_mean = sim_param.high_mean_jobs
+    lt = sim_param.latency_threshold
     job_profiles = []
-
+    
+    
     for i in range(num_app_types):
         job_profiles += [Job_Profile(job_name = str(i),
-                                     latency_req = 3,
+                                     latency_req = np.random.randint(lt[0],lt[1]),
                                      offload_mean = np.random.uniform(low_mean,high_mean))]
 
 

@@ -20,6 +20,7 @@ class Application:
         self.time_steps = time_steps
         self.job_profile = job_profiles[job_type] # Load rate, latency restriction
         self.user = user
+        self.latency_threshold = self.job_profile.latency_req
        
         # Load latency/offload values
         self.latency_req = self.job_profile.latency_req
@@ -31,7 +32,7 @@ class Application:
         
         # Record total amount of load generated per ts
         self.load_history = {}
-        self.queue_length = {} # key[server] [big_ts, small_ts, load, ts_taken, distance]
+        self.queue_length = {} # key[server] [big_ts, small_ts, load, ts_taken, distance, max(ts_taken-thresh,0)]
         
         # Record Reinforcement learning values below (UCB, confidence range)
         
@@ -54,10 +55,12 @@ class Application:
     
     def record_queue_length(self, queue_response, server, ts_big, ts_small, load, s_dist):
         
+        num_params = 6
+        
         if server not in self.queue_length:
-            self.queue_length[server] = np.empty([0,5])
+            self.queue_length[server] = np.empty([0,num_params])
             
-        row = np.array([[ts_big, ts_small, load, queue_response, s_dist]])
+        row = np.array([[ts_big, ts_small, load, queue_response, s_dist, np.maximum(queue_response-self.latency_threshold,0)]])
         self.queue_length[server] = np.append(self.queue_length[server], row, axis=0)
         
         return
