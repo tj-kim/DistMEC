@@ -4,12 +4,19 @@ import random
 
 class User():
 
-    def __init__(self, locs, svr_locs, max_dist = 7, threshold_dist = 6, self_weight = 0.5, P = None, ceiling = 20):
+    def __init__(self, locs, svr_locs, mu, idx, 
+                 max_dist = 7, threshold_dist = 6, self_weight = 0.5, P = None, ceiling = 10):
+        # max dist - reward range
+        # threshold dist - used for generating markov chain
         
+        self.idx = idx
         self.locs = locs
         self.dists = self.get_dists()
         self.svr_locs = svr_locs
         self.ceiling = ceiling
+        self.mu = mu # True weights
+        self.t = 0 # Time-steps past
+        self.mode = "blind" # oracle
         
         if P is None:
             self.P = self.make_P(threshold_dist, self_weight)
@@ -20,6 +27,15 @@ class User():
         self.reward_scale = self.get_scales(max_dist)
         self.usr_place = self.init_loc()
         self.expected_time = self.get_expected_time()
+        
+        # Initialize learning parameters
+        self.ucb_raw = np.zeros(len(svr_locs))
+        self.pulls = np.zeros(len(svr_locs))
+        self.param_summed = np.zeros(len(svr_locs))
+        self.max_logs = np.zeros(len(svr_locs)) # Threshold value UCB idx must exceed to pull arm
+        self.wait_times = np.zeros(len(svr_locs))
+        
+        
     
     def make_P(self, threshold_dist, self_weight):
         # Creating Markov Transition Probability Matrix 
@@ -104,4 +120,63 @@ class User():
             curr_prob = self.ceiling
         
         return curr_prob
+    
+    def update_ucb(self, L=2):
+        """
+        Update decision variables for next round
+        """
+
+        reward_record = self.rewards_scaled
+        pulls_record = self.pulls
+        ucb = np.zeros(self.ucb_raw.shape)
+        
+        for s in range(reward_record.shape[0]):
+            if pulls_record[s] > 0:
+                mean = reward_record[s]/pulls_record[s]
+            else:
+                mean = 0
+
+            cb = np.sqrt(L * np.log(self.t)/ pulls_record[s])
+
+            ucb[s] = mean + cb
+
+        self.ucb_raw = ucb
+    
+    def choose_arm(self):
+        # Choose an arm to pull based on collision restriction and UCB info
+        
+        if self.mode is "blind": 
+            ucb_scaled =  self.reward_scale[self.usr_place] * self.ucb_raw
+        else:
+            ucb_scaled = self.reward_scale[self.usr_place] * self.mu
+            
+        for i in range(ucb_scaled.shape[0]):
+            if self.wait_times[i] > 0 and ucb_scaled[i] > self.max_logs[i]:
+                ucb_scaled[i] = -10 # Force arm out of consideration
+        
+        arm_id = np.argmax(ucb_scaled)
+        
+        return arm_id
+    
+    def receive_reward(self, arm_id, reward, collision_flag, max_reward, wait_time, chosen_idx):
+        # Return information from server transaction
+        if not collision_flag:
+            scale = self.reward_scale[self.usr_place,arm_id]
+            self.pulls[arm_id] += 1
+            self.param_summed[arm_id] += reward/scale
+            self.t += 1 # only update time used in UCB index when success
+        elif chosen_idx != self.idx:
+            self.max_logs[arm_id] = max_reward # Threshold value UCB idx must exceed to pull arm
+            self.wait_times[arm_id] = wait_time
+        else: # This arm is reserved
+            pass
+        
+        self.update_waittime(arm_id, wait_time, max_reward)
+    
+    def update_waittime(self, arm_id, wait_time, max_reward):
+        self.wait_times -= 1
+        self.wait_times[self.wait_times < 0] = 0
+        self.max_logs[self.wait_times <= 0] = 0
+    
+
     
