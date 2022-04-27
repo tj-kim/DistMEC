@@ -34,6 +34,7 @@ class User():
         self.param_summed = np.zeros(len(svr_locs))
         self.max_logs = np.zeros(len(svr_locs)) # Threshold value UCB idx must exceed to pull arm
         self.wait_times = np.zeros(len(svr_locs))
+        self.mu_est = np.zeros(len(svr_locs))
         
         
     
@@ -119,24 +120,30 @@ class User():
         except:
             curr_prob = self.ceiling
         
-        return curr_prob
+        if curr_prob > self.ceiling:
+            return self.ceiling
+        else:
+            return curr_prob
     
     def update_ucb(self, L=2):
         """
         Update decision variables for next round
         """
 
-        reward_record = self.rewards_scaled
+        reward_record = self.param_summed
         pulls_record = self.pulls
         ucb = np.zeros(self.ucb_raw.shape)
         
         for s in range(reward_record.shape[0]):
             if pulls_record[s] > 0:
                 mean = reward_record[s]/pulls_record[s]
+                self.mu_est[s] = mean
             else:
                 mean = 0
-
-            cb = np.sqrt(L * np.log(self.t)/ pulls_record[s])
+            
+            if pulls_record[s] > 0:
+                cb = np.sqrt(L * np.log(self.t)/ pulls_record[s])
+            else: cb = 0
 
             ucb[s] = mean + cb
 
@@ -151,20 +158,25 @@ class User():
             ucb_scaled = self.reward_scale[self.usr_place] * self.mu
             
         for i in range(ucb_scaled.shape[0]):
-            if self.wait_times[i] > 0 and ucb_scaled[i] > self.max_logs[i]:
-                ucb_scaled[i] = -10 # Force arm out of consideration
+            if self.wait_times[i] > 0:
+                if ucb_scaled[i] >= self.max_logs[i]:
+                    continue
+                else:
+                    ucb_scaled[i] = -10 # Force arm out of consideration
         
-        arm_id = np.argmax(ucb_scaled)
+        arm_id = np.random.choice(np.flatnonzero(ucb_scaled == ucb_scaled.max()))
+#         arm_id = np.argmax(ucb_scaled)
         
         return arm_id
     
     def receive_reward(self, arm_id, reward, collision_flag, max_reward, wait_time, chosen_idx):
         # Return information from server transaction
-        if not collision_flag:
+        if collision_flag is False:
             scale = self.reward_scale[self.usr_place,arm_id]
             self.pulls[arm_id] += 1
-            self.param_summed[arm_id] += reward/scale
+            self.param_summed[arm_id] += reward[0]/scale
             self.t += 1 # only update time used in UCB index when success
+            self.update_ucb()
         elif chosen_idx != self.idx:
             self.max_logs[arm_id] = max_reward # Threshold value UCB idx must exceed to pull arm
             self.wait_times[arm_id] = wait_time
@@ -172,6 +184,7 @@ class User():
             pass
         
         self.update_waittime(arm_id, wait_time, max_reward)
+        
     
     def update_waittime(self, arm_id, wait_time, max_reward):
         self.wait_times -= 1

@@ -23,9 +23,11 @@ class Server():
                 reward[i] = scales_list[i] *  np.random.binomial(n=1,p=self.mu[user_list[i], self.s_idx])
                 reserve_max_val_list[i] = scales_list[i] * w_est_list[i]
             
-            reserve_id = user_list[np.argmax(reserve_max_val)]
-            reserve_max_val = reserve_max_val_list[np.argmax(reserve_max_val)]
-            reserve_time = stay_times_list[np.argmax(reserve_max_val)]
+            chosen_idx = np.random.choice(np.flatnonzero(reserve_max_val_list == reserve_max_val_list.max()))
+            
+            reserve_id = user_list[np.argmax(chosen_idx)]
+            reserve_max_val = reserve_max_val_list[np.argmax(chosen_idx)]
+            reserve_time = stay_times_list[np.argmax(chosen_idx)]
             
                 
         else: # no users pull this arm
