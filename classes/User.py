@@ -169,7 +169,8 @@ class User():
         
         return arm_id
     
-    def receive_reward(self, arm_id, reward, collision_flag, max_reward, wait_time, chosen_idx):
+    def receive_reward(self, arm_id, reward, collision_flag, max_reward, wait_time, chosen_idx,
+                       reservation_mode = True):
 #         # Return information from server transaction
 #         if collision_flag is False:
 #             scale = self.reward_scale[self.usr_place,arm_id]
@@ -189,11 +190,16 @@ class User():
         self.t += 1 # only update time used in UCB index when success
         self.update_ucb()
             
-        if collision_flag is True and chosen_idx != self.idx:
-            self.max_logs[arm_id] = max_reward # Threshold value UCB idx must exceed to pull arm
-            self.wait_times[arm_id] = wait_time
+        if reservation_mode:
+            if collision_flag:
+                if chosen_idx != self.idx
+                    self.max_logs[arm_id] = max_reward # Threshold value UCB idx must exceed to pull arm
+                    self.wait_times[arm_id] = wait_time
+                else:
+                    self.svr_stick_idx = arm_id
+                    self.stick_time_remaining = 
 
-        self.update_waittime(arm_id, wait_time, max_reward)
+            self.update_waittime(arm_id, wait_time, max_reward)
         
     
     def update_waittime(self, arm_id, wait_time, max_reward):
