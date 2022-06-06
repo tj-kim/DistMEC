@@ -5,7 +5,8 @@ import random
 class User():
 
     def __init__(self, locs, svr_locs, mu, idx, 
-                 max_dist = 7, threshold_dist = 6, self_weight = 0.5, P = None, ceiling = 10):
+                 max_dist = 7, threshold_dist = 6, self_weight = 0.5, P = None, ceiling = 10,
+                 sticky_mode = True):
         # max dist - reward range
         # threshold dist - used for generating markov chain
         
@@ -17,6 +18,7 @@ class User():
         self.mu = mu # True weights
         self.t = 0 # Time-steps past
         self.mode = "blind" # oracle
+        self.sticky_mode = sticky_mode
         
         if P is None:
             self.P = self.make_P(threshold_dist, self_weight)
@@ -26,6 +28,7 @@ class User():
         self.reward_dists = self.get_reward_dists()
         self.reward_scale = self.get_scales(max_dist)
         self.usr_place = self.init_loc()
+        self.expected_time_true = self.get_expected_time()
         self.expected_time = self.get_expected_time()
         
         # Initialize learning parameters
@@ -36,6 +39,8 @@ class User():
         self.wait_times = np.zeros(len(svr_locs))
         self.mu_est = np.zeros(len(svr_locs))
         
+        # Enhanced Reservation System
+        self.svr_stick_idx = None
         
     
     def make_P(self, threshold_dist, self_weight):
@@ -111,7 +116,7 @@ class User():
         weights = self.P[self.usr_place]
         population = range(weights.shape[0])
         self.usr_place =  random.choices(population, weights)[0]
-        self.expected_time = self.get_expected_time()
+        self.expected_time_true = self.get_expected_time()
         
     def get_expected_time(self):
         # Get number of expected ts user will stay at this location
@@ -152,20 +157,23 @@ class User():
     def choose_arm(self):
         # Choose an arm to pull based on collision restriction and UCB info
         
-        if self.mode is "blind": 
-            ucb_scaled =  self.reward_scale[self.usr_place] * self.ucb_raw
+        if self.svr_stick_idx is None:
+            if self.mode is "blind": 
+                ucb_scaled =  self.reward_scale[self.usr_place] * self.ucb_raw
+            else:
+                ucb_scaled = self.reward_scale[self.usr_place] * self.mu
+
+            for i in range(ucb_scaled.shape[0]):
+                if self.wait_times[i] > 0:
+                    if ucb_scaled[i] >= self.max_logs[i]:
+                        continue
+                    else:
+                        ucb_scaled[i] = -10 # Force arm out of consideration
+
+            arm_id = np.random.choice(np.flatnonzero(ucb_scaled == ucb_scaled.max()))
+    #         arm_id = np.argmax(ucb_scaled)
         else:
-            ucb_scaled = self.reward_scale[self.usr_place] * self.mu
-            
-        for i in range(ucb_scaled.shape[0]):
-            if self.wait_times[i] > 0:
-                if ucb_scaled[i] >= self.max_logs[i]:
-                    continue
-                else:
-                    ucb_scaled[i] = -10 # Force arm out of consideration
-        
-        arm_id = np.random.choice(np.flatnonzero(ucb_scaled == ucb_scaled.max()))
-#         arm_id = np.argmax(ucb_scaled)
+            arm_id = self.svr_stick_idx
         
         return arm_id
     
@@ -192,12 +200,22 @@ class User():
             
         if reservation_mode:
             if collision_flag:
-                if chosen_idx != self.idx
+                if chosen_idx != self.idx: # Someone else reserves the arm 
                     self.max_logs[arm_id] = max_reward # Threshold value UCB idx must exceed to pull arm
                     self.wait_times[arm_id] = wait_time
-                else:
-                    self.svr_stick_idx = arm_id
-                    self.stick_time_remaining = 
+                    
+                    if self.sticky_mode:
+                        # Clean up sticky arm
+                        self.svr_stick_idx = None
+                        self.expected_time = self.expected_time_true
+                elif self.svr_stick_idx is None: # newly reserve the arm
+                    if self.sticky_mode:
+                        self.svr_stick_idx = arm_id
+                        self.expected_time = self.expected_time_true
+                elif self.svr_stick_idx is not None: # reserving already occured
+                    pass
+            else: # No collision occurs
+                pass
 
             self.update_waittime(arm_id, wait_time, max_reward)
         
@@ -206,6 +224,12 @@ class User():
         self.wait_times -= 1
         self.wait_times[self.wait_times < 0] = 0
         self.max_logs[self.wait_times <= 0] = 0
+        
+        if self.svr_stick_idx is not None: # if reservation takes place
+            self.expected_time -= 1
+            if self.expected_time <= 0:
+                self.svr_stick_idx = None
+                self.expected_time = self.expected_time_true
     
 
     
