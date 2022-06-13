@@ -1,12 +1,18 @@
 import numpy as np
 import itertools
 import random
+import copy
 
 class User():
 
     def __init__(self, locs, svr_locs, mu, idx, 
                  max_dist = 7, threshold_dist = 6, self_weight = 0.5, P = None, ceiling = 10,
-                 sticky_mode = True):
+                 sticky_mode = True, kick_mode = True):
+        """
+        ceiling = max number of reservation time step
+        sticky_mode = stick with same arm for set number of time steps once reserved
+        kick_mode = other user with higher production can interupt reservation when collision
+        """
         # max dist - reward range
         # threshold dist - used for generating markov chain
         
@@ -19,6 +25,8 @@ class User():
         self.t = 0 # Time-steps past
         self.mode = "blind" # oracle
         self.sticky_mode = sticky_mode
+        self.kick_mode = kick_mode
+        self.kick_threshold = 10000
         
         if P is None:
             self.P = self.make_P(threshold_dist, self_weight)
@@ -38,6 +46,7 @@ class User():
         self.max_logs = np.zeros(len(svr_locs)) # Threshold value UCB idx must exceed to pull arm
         self.wait_times = np.zeros(len(svr_locs))
         self.mu_est = np.zeros(len(svr_locs))
+        self.ucb_present = copy.deepcopy(self.ucb_raw)
         
         # Enhanced Reservation System
         self.svr_stick_idx = None
@@ -153,6 +162,7 @@ class User():
             ucb[s] = mean + cb
 
         self.ucb_raw = ucb
+        
     
     def choose_arm(self):
         # Choose an arm to pull based on collision restriction and UCB info
@@ -179,18 +189,6 @@ class User():
     
     def receive_reward(self, arm_id, reward, collision_flag, max_reward, wait_time, chosen_idx,
                        reservation_mode = True):
-#         # Return information from server transaction
-#         if collision_flag is False:
-#             scale = self.reward_scale[self.usr_place,arm_id]
-#             self.pulls[arm_id] += 1
-#             self.param_summed[arm_id] += reward[0]/scale
-#             self.t += 1 # only update time used in UCB index when success
-#             self.update_ucb()
-#         elif chosen_idx != self.idx:
-#             self.max_logs[arm_id] = max_reward # Threshold value UCB idx must exceed to pull arm
-#             self.wait_times[arm_id] = wait_time
-#         else: # This arm is reserved
-#             pass
 
         scale = self.reward_scale[self.usr_place,arm_id]
         self.pulls[arm_id] += 1
@@ -225,11 +223,16 @@ class User():
         self.wait_times[self.wait_times < 0] = 0
         self.max_logs[self.wait_times <= 0] = 0
         
+        self.ucb_present = copy.deepcopy(self.ucb_raw)
+        
         if self.svr_stick_idx is not None: # if reservation takes place
             self.expected_time -= 1
             if self.expected_time <= 0:
                 self.svr_stick_idx = None
                 self.expected_time = self.expected_time_true
+            else:
+                if not self.kick_mode:
+                    self.ucb_present[self.svr_stick_idx] = self.kick_threshold
     
 
     

@@ -59,7 +59,7 @@ def sort_server_results(arms_list, Servers, Users):
         stay_times = np.zeros(usr_idxs.shape[0])
         for u in range(usr_idxs.shape[0]):
             scales[u] = Users[usr_idxs[u]].reward_scale[Users[usr_idxs[u]].usr_place,s]
-            w_est[u] =  Users[usr_idxs[u]].ucb_raw[s]
+            w_est[u] =  Users[usr_idxs[u]].ucb_present[s]
             stay_times[u] = Users[usr_idxs[u]].expected_time
 
         user_list = usr_idxs.tolist()
