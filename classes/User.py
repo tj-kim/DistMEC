@@ -51,6 +51,12 @@ class User():
         # Enhanced Reservation System
         self.svr_stick_idx = None
         
+        # history
+        self.history_location = []
+        self.history_pull = []
+        self.history_reward = []
+        self.history_collisions = []
+        self.history_reserve = []
     
     def make_P(self, threshold_dist, self_weight):
         # Creating Markov Transition Probability Matrix 
@@ -216,6 +222,13 @@ class User():
                 pass
 
             self.update_waittime(arm_id, wait_time, max_reward)
+            
+        # Update history
+        self.history_location += [self.usr_place]
+        self.history_pull += [arm_id]
+        self.history_reward += [reward]
+        self.history_collisions += [collision_flag]
+        self.history_reserve += [(self.svr_stick_idx is not None)]
         
     
     def update_waittime(self, arm_id, wait_time, max_reward):
