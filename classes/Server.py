@@ -27,10 +27,11 @@ class Server():
                 reserve_max_val_list[i] = scales_list[i] * w_est_list[i]
             
             chosen_idx = np.random.choice(np.flatnonzero(reserve_max_val_list == reserve_max_val_list.max()))
+#             print(chosen_idx)
             
-            reserve_id = user_list[np.argmax(chosen_idx)]
-            reserve_max_val = reserve_max_val_list[np.argmax(chosen_idx)]
-            reserve_time = stay_times_list[np.argmax(chosen_idx)]
+            reserve_id = user_list[(chosen_idx)]
+            reserve_max_val = reserve_max_val_list[(chosen_idx)]
+            reserve_time = stay_times_list[(chosen_idx)]
             
                 
         else: # no users pull this arm

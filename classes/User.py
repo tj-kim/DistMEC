@@ -182,7 +182,7 @@ class User():
             for i in range(ucb_scaled.shape[0]):
                 if self.wait_times[i] > 0:
                     if ucb_scaled[i] >= self.max_logs[i]:
-                        continue
+                        pass
                     else:
                         ucb_scaled[i] = -10 # Force arm out of consideration
 
