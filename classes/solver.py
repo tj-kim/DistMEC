@@ -85,7 +85,7 @@ def pull_super_arm(arms, mus, rewards_record, pulls_record ):
         pulls_record[i,arms[i]] += 1
     return rewards_record, pulls_record
     
-def update_ucb(reward_record, pulls_record, ucb, T, L=2):
+def update_ucb(reward_record, pulls_record, ucb, T, L=1):
     """
     Update decision variables for next round
     """

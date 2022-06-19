@@ -151,44 +151,6 @@ def play_round(Users, Servers, mu, regret, collision_count,
     if optimal == None:
         optimal = offline_optimal_action(w, mu)
     
-    
-    if debugger:
-        print("time:", t)
-        
-        print("\nmu")
-        print(mu)
-    
-        print("\nest mu")
-        for i in range(len(Users)):
-            print(Users[i].param_summed/Users[i].pulls)
-
-        print("\nuser w")
-        for i in range(len(Users)):
-            print(Users[i].reward_scale[Users[i].usr_place])
-
-        print("\nscaled_reward")    
-        for i in range(len(Users)):
-            print(Users[i].reward_scale[Users[i].usr_place] * mu[i])
-            
-        print("\nraw ucb")
-        for i in range(len(Users)):
-            print(Users[i].ucb_raw)
-            
-        print("\nscaled_ucb")    
-        for i in range(len(Users)):
-            print(Users[i].reward_scale[Users[i].usr_place] * Users[i].ucb_raw)
-
-        print("\nuser pulls")
-        for i in range(len(Users)):
-            print(Users[i].pulls)
-
-        print("\nuser locs")
-        locci = []
-        for i in range(len(Users)):
-            locci += [Users[i].usr_place]
-        print(locci)
-
-    
     arms = get_arms_list(Users)
     reward_exp_now, collision_count[t] = expected_reward_collision_sensing(arms, mu, w)
     regret[t] = optimal[1] - reward_exp_now
@@ -197,26 +159,16 @@ def play_round(Users, Servers, mu, regret, collision_count,
                      reservation_mode)
     if usr_move_flag:
         update_user_locs(Users)
-        
-    if debugger:
-        
-        print("\noptimal arms")
-        print(optimal[0])
-        
-        print("\nchosen arms")
-        print(arms)
-        
-        # Advanced
-        print("\nmax log")    
-        for i in range(len(Users)):
-            print(Users[i].max_logs)
             
-        print("\nwait times")    
-        for i in range(len(Users)):
-            print(Users[i].wait_times)
-        
-        print("\nregret")
-        print(regret[t])
-            
-#     return
     return svr_res
+
+def copy_usr_loc(Users1, Users2):
+    
+    for u in range(len(Users1)):
+        Users2[u].usr_place = Users1[u].usr_place
+        Users2[u].expected_time_true = Users2[u].get_expected_time()
+        
+def moving_average(a, n=3) :
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n

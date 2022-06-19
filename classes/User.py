@@ -28,6 +28,7 @@ class User():
         self.kick_mode = kick_mode
         self.kick_threshold = 10000
         
+        
         if P is None:
             self.P = self.make_P(threshold_dist, self_weight)
         else:
@@ -38,6 +39,9 @@ class User():
         self.usr_place = self.init_loc()
         self.expected_time_true = self.get_expected_time()
         self.expected_time = self.get_expected_time()
+        
+        self.stationary_loc = self.get_stationary_loc()
+        self.stationary_reward_scale = self.get_stationary_scale()
         
         # Initialize learning parameters
         self.ucb_raw = np.zeros(len(svr_locs))
@@ -81,6 +85,29 @@ class User():
                 idx += 1
             
         return P
+    
+    def get_stationary_loc(self):
+        
+        evals, evecs = np.linalg.eig(self.P.T)
+        evec1 = evecs[:,np.isclose(evals, 1)]
+
+        #Since np.isclose will return an array, we've indexed with an array
+        #so we still have our 2nd axis.  Get rid of it, since it's only size 1.
+        evec1 = evec1[:,0]
+
+        stationary = evec1 / evec1.sum()
+
+        #eigs finds complex eigenvalues and eigenvectors, so you'll want the real part.
+        stationary = stationary.real
+        
+        return stationary
+    
+    def get_stationary_scale(self):
+        s2 = self.stationary_loc.reshape([1,self.stationary_loc.shape[0]])
+        r2 = self.reward_scale
+        
+        stationary_scale = np.matmul(s2, r2).flatten()
+        return stationary_scale
     
     def get_dists(self):
         # Obtaining distance matrix (from loc to loc) 
