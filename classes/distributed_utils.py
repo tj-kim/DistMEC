@@ -140,11 +140,12 @@ def explore_rounds(Users, num_users, Servers, mu, regret, collision_count,
     return
     
 def play_round(Users, Servers, mu, regret, collision_count, 
-               usr_move_flag = False, reservation_mode = True, debugger = False, optimal = None):
+               usr_move_flag = False, reservation_mode = True, debugger = False, optimal = None, t = None):
     
     num_users = len(Users)
     num_svrs = len(Servers)
-    t = int(np.sum(Users[0].pulls))
+    if t is None:
+        t = int(np.sum(Users[0].pulls))
     
     w = obtain_w(Users, num_users, num_svrs)
     
@@ -172,3 +173,36 @@ def moving_average(a, n=3) :
     ret = np.cumsum(a, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
+
+# Fix P
+def fix_P(user):
+    P = user.P
+    
+    for i in range(user.P.shape[1]):
+        tot = np.sum(user.P[i])
+        if tot != 1.0:
+            user.P[i] = user.P[i]/tot
+        
+    return
+
+
+def obtain_w_stationary(Users, num_users, num_svrs):
+    
+    w_curr = np.zeros([num_users,num_svrs])
+    for i in range(num_users):
+        w_curr[i] = Users[i].stationary_reward_scale
+    
+    return w_curr
+
+def extract_centralized_case(Users, num_users, num_svrs):
+    
+    rewards_record = np.zeros([num_users,num_svrs])
+    pulls_record = np.zeros([num_users,num_svrs])
+    ucb = np.zeros([num_users,num_svrs])
+    
+    for i in range(num_users):
+        rewards_record[i] = Users[i].param_summed
+        pulls_record[i] = Users[i].pulls
+        ucb[i] = Users[i].ucb_raw 
+    
+    return rewards_record, pulls_record, ucb
