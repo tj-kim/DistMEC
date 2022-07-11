@@ -17,7 +17,7 @@ def gen_eq_locs(space_1d, nums, offset = 0.5):
     num_across = int(np.floor(np.sqrt(nums)))
     locs = []
     
-    inc = space_1d/nums
+    inc = space_1d/num_across
     
     for i,j in itertools.product(range(num_across), range(num_across)):
         locs += [(i*inc+offset, j*inc+offset)]

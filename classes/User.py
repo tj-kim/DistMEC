@@ -223,7 +223,7 @@ class User():
     def receive_reward(self, arm_id, reward, collision_flag, max_reward, wait_time, chosen_idx,
                        reservation_mode = True):
 
-        scale = self.reward_scale[self.usr_place,arm_id]
+        scale = self.reward_scale[self.usr_place,arm_id] + 0.001
         self.pulls[arm_id] += 1
         self.param_summed[arm_id] += reward[self.idx]/scale
         self.t += 1 # only update time used in UCB index when success
