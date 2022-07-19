@@ -275,4 +275,212 @@ class User():
                     self.ucb_present[self.svr_stick_idx] = self.kick_threshold
     
 
+class GoT_User(User):
     
+    def __init__(self, locs, svr_locs, mu, idx, 
+                 max_dist = 7, threshold_dist = 6, self_weight = 0.5, P = None,
+                 c1 = 100, c2 = 600, c3 = 600, delta = 0, rho = 0.5, epsilon = 0.01,
+                 c = None, horizon = 15000):
+        """
+        ceiling = max number of reservation time step
+        sticky_mode = stick with same arm for set number of time steps once reserved
+        kick_mode = other user with higher production can interupt reservation when collision
+        """
+        # max dist - reward range
+        # threshold dist - used for generating markov chain
+        
+        self.idx = idx
+        self.locs = locs
+        self.dists = self.get_dists()
+        self.svr_locs = svr_locs
+        self.mu = mu # True weights
+        
+        self.t = 0 # Time-steps past
+        self.mode = "blind" # oracle
+        self.phase = 0 #{0-exploration,1-GoT,2-exploitation}
+        self.t_p = 0 #{timestep within phase }
+        self.k = 0 # epoch
+        
+        self.c1 = c1
+        self.c2 = c2
+        self.c3= c3
+        self.horizon = horizon
+        
+        self.delta = delta
+        self.rho = rho
+        self.epsilon = epsilon
+        if c == None:
+            self.c = len(svr_locs)
+        else:
+            self.c = c
+        self.got_base_arm = 0
+        
+        
+        if P is None:
+            self.P = self.make_P(threshold_dist, self_weight)
+        else:
+            self.P = P
+            
+        self.reward_dists = self.get_reward_dists()
+        self.reward_scale = self.get_scales(max_dist)
+        self.usr_place = self.init_loc()
+        
+        self.stationary_loc = self.get_stationary_loc()
+        self.stationary_reward_scale = self.get_stationary_scale()
+        
+        # Initialize learning parameters
+        self.pulls = np.zeros(len(svr_locs))
+        self.param_summed = np.zeros(len(svr_locs))
+        self.Ftni = np.zeros(len(svr_locs)) # number of rounds in content state
+        self.Fmax_idx = 0 # arm to pull during exploitation phase
+        self.mu_est = np.zeros(len(svr_locs))
+        self.state = 'discontent'
+        
+        self.epoch_time_mapping = np.zeros(horizon)
+        self.phase_time_mapping = np.zeros(horizon)
+        
+        self.set_epochs()
+        
+        self.ucb_present = self.mu_est
+        self.expected_time = 1
+        self.ceiling = 1
+
+        # history
+        self.history_location = []
+        self.history_pull = []
+        self.history_reward = []
+        self.history_collisions = []
+        
+    def set_epochs(self):
+        
+        pass_flag = True
+        curr_phase = 0
+        t_track = 0
+        temp_k = 1
+        
+        while pass_flag:
+            if curr_phase == 0:
+                num_steps = self.c1
+            elif curr_phase == 1:
+                num_steps = self.c2 * (temp_k)**(1+self.delta)
+            elif curr_phase == 2:
+                num_steps = self.c3 * 2**(temp_k)
+            
+            end_time = t_track + num_steps
+            
+            if end_time >= self.horizon:
+                end_time = self.horizon
+                pass_flag = False
+            
+            self.epoch_time_mapping[t_track:end_time] = (temp_k) 
+            self.phase_time_mapping[t_track:end_time] = curr_phase
+            
+            curr_phase += 1
+            t_track = end_time
+            
+            if curr_phase > 2:
+                curr_phase = 0
+                temp_k += 1
+            
+        return
+            
+        
+    def update_mean(self):
+        """
+        Update decision variables for next round
+        """
+
+        reward_record = self.param_summed
+        pulls_record = self.pulls
+        
+        for s in range(reward_record.shape[0]):
+            if pulls_record[s] > 0:
+                mean = reward_record[s]/pulls_record[s]
+                self.mu_est[s] = mean
+    
+    
+    def choose_arm(self):
+        # Choose an arm to pull based on collision restriction and UCB info
+        
+        phase = self.phase_time_mapping[self.t]
+        
+        if phase == 0: # Exploration Phase
+            arm_id = np.random.randint(low=0, high=len(self.svr_locs))
+        elif phase == 1: # GoT Phase
+            if self.state == 'content':
+                sub_arm_prob = self.epsilon**self.c / (len(self.svr_locs)-1)
+                pdf = np.ones(len(self.svr_locs)) * sub_arm_prob
+                pdf[self.got_base_arm] = 1 - self.epsilon**self.c
+                arm_id = np.random.choice(len(self.svr_locs), 1, p=pdf)[0]
+            elif self.state == 'discontent':
+                arm_id = np.random.randint(low=0, high=len(self.svr_locs))
+        elif phase == 2: # Exploitation Phase
+            arm_id = self.Fmax_idx
+        
+        return arm_id
+    
+    def receive_reward(self, arm_id, reward, collision_flag, max_reward, wait_time, chosen_idx,
+                       reservation_mode = False):
+
+        phase = self.phase_time_mapping[self.t]
+#         scale = self.stationary_reward_scale[arm_id]
+        scale = self.reward_scale[self.usr_place][arm_id]
+        constant = 0.001
+        
+        if phase == 0: # Exploration Phase                              
+            if not collision_flag:
+                self.pulls[arm_id] += 1
+                self.param_summed[arm_id] += reward[self.idx]/(scale+constant)
+                self.update_mean()
+        elif phase == 1: # GoT Phase
+            if arm_id == self.got_base_arm and not collision_flag and self.state == 'content':
+                if self.t_p > np.ceil(self.rho*self.c2*self.k**(1+self.delta)):
+                    self.Ftni[self.got_base_arm] += 1
+            else:
+                self.got_base_arm = arm_id
+                uns = self.stationary_reward_scale* self.mu_est
+                un_max = np.max(uns)
+                un = uns[arm_id] * (1-collision_flag)
+                prob_c = (un/un_max)*self.epsilon**(un_max-un)
+                if np.random.binomial(n=1,p=prob_c) == 1:
+                    self.state = 'content'
+                    if self.t_p > np.ceil(self.rho*self.c2*self.k**(1+self.delta)):
+                        self.Ftni[self.got_base_arm] += 1
+                else:
+                    self.state = 'discontent'
+        elif phase == 2: # Exploitation Phase
+            pass
+        
+            
+        # Update history
+        self.history_location += [self.usr_place]
+        self.history_pull += [arm_id]
+        self.history_reward += [reward]
+        self.history_collisions += [collision_flag]
+        
+        self.advance_time()
+        
+    def advance_time(self):
+        self.t += 1
+        self.t_p += 1
+        
+        try:
+            prev_epoch = self.epoch_time_mapping[t-1]
+            now_epoch = self.epoch_time_mapping[t]
+            prev_phase = self.phase_time_mapping[t-1]
+            now_phase = self.phase_time_mapping[t]
+            
+            if prev_epoch != now_epoch: # Reset all epoch (2-->0)
+                self.t_p = 0
+                self.state = 'discontent'
+                self.Ftni = np.zeros(len(svr_locs)) # number of rounds in content state
+                self.Fmax_idx = 0
+                
+            elif prev_phase != now_phase: # Go to next phase
+                self.t_p = 0
+                
+                if now_phase == 2:
+                    self.Fmax_idx = np.argmax(self.Ftni) 
+        except:
+            pass
+#             print("advance time pass")
