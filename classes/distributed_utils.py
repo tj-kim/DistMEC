@@ -24,6 +24,12 @@ def gen_eq_locs(space_1d, nums, offset = 0.5):
     
     return locs
 
+def gen_rand_locs(space_1d, nums):
+    locs = []
+    for i in range(nums):
+        locs += [(np.random.uniform(low=0.0, high=space_1d),np.random.uniform(low=0.0, high=space_1d))]
+    return locs
+
 def obtain_w(Users, num_users, num_svrs): # checked
     
     w_curr = np.zeros([num_users,num_svrs])
