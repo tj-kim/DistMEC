@@ -27,6 +27,7 @@ class User():
         self.sticky_mode = sticky_mode
         self.kick_mode = kick_mode
         self.kick_threshold = 10000
+        self.rsv_lower_bound = 0
         
         
         if P is None:
@@ -169,6 +170,8 @@ class User():
         
         if curr_prob > self.ceiling:
             return self.ceiling
+        if curr_prob < self.rsv_lower_bound:
+            return self.rsv_lower_bound
         else:
             return curr_prob
     
