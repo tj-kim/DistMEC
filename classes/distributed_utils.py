@@ -146,14 +146,16 @@ def explore_rounds(Users, num_users, Servers, mu, regret, collision_count,
     return
     
 def play_round(Users, Servers, mu, regret, collision_count, 
-               usr_move_flag = False, reservation_mode = True, debugger = False, optimal = None, t = None):
+               usr_move_flag = False, reservation_mode = True, debugger = False, optimal = None, t = None,
+               w = None):
     
     num_users = len(Users)
     num_svrs = len(Servers)
     if t is None:
         t = int(np.sum(Users[0].pulls))
     
-    w = obtain_w(Users, num_users, num_svrs)
+    if type(w) is not np.ndarray:
+        w = obtain_w(Users, num_users, num_svrs)
     
     if optimal == None:
         optimal = offline_optimal_action(w, mu)

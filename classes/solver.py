@@ -68,6 +68,8 @@ def offline_optimal_action(W, mu):
     new_action = []
     for i in range(action.shape[0]):
         new_action += [int(action[i])]
+        
+    del prob, X
     
     return new_action, rwd
 
