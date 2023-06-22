@@ -119,8 +119,10 @@ def get_user_locs(Users):
         
     return usr_loc_list
 
+# Alter to 
 def explore_rounds(Users, num_users, Servers, mu, regret, collision_count, 
-                   optimal_reward = None, usr_move_flag = False, rounds=1):
+                   optimal_reward = None, usr_move_flag = False, rounds=1,
+                   skip_optimal = False):
 
     arms = list(range(num_users)) 
     num_svrs = len(Servers)
@@ -128,7 +130,12 @@ def explore_rounds(Users, num_users, Servers, mu, regret, collision_count,
     for j in range(rounds):
         for i in range(num_svrs):
             w = obtain_w(Users, num_users, num_svrs)
-            optimal = offline_optimal_action(w, mu)
+            
+            if skip_optimal:
+                temp_rwd = 10
+                optimal = arms, temp_rwd
+            else:
+                optimal = offline_optimal_action(w, mu)
             
             if optimal_reward is not None:
                 optimal_reward[j*(num_svrs) + i] = optimal[1]
@@ -147,7 +154,7 @@ def explore_rounds(Users, num_users, Servers, mu, regret, collision_count,
     
 def play_round(Users, Servers, mu, regret, collision_count, 
                usr_move_flag = False, reservation_mode = True, debugger = False, optimal = None, t = None,
-               w = None):
+               w = None, arms_override = None):
     
     num_users = len(Users)
     num_svrs = len(Servers)
@@ -160,7 +167,12 @@ def play_round(Users, Servers, mu, regret, collision_count,
     if optimal == None:
         optimal = offline_optimal_action(w, mu)
     
-    arms = get_arms_list(Users)
+    if arms_override is not None:
+        arms = arms_override
+    else:
+        arms = get_arms_list(Users)
+    
+    
     reward_exp_now, collision_count[t] = expected_reward_collision_sensing(arms, mu, w)
     regret[t] = optimal[1] - reward_exp_now
     svr_res = sort_server_results(arms, Servers, Users)
